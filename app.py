@@ -1,50 +1,60 @@
-from flask import Flask
 import os
+import threading
+from flask import Flask, render_template
+from dotenv import load_dotenv
+
+from telegram import Update, WebAppInfo, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEB_URL = os.getenv("WEB_URL")  # Render URL
+
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN topilmadi (.env ni tekshir)")
 
 app = Flask(__name__)
 
+# ---------- FLASK ----------
 @app.route("/")
-def mini_app():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Mini App</title>
-        <style>
-            body {
-                font-family: Arial;
-                background: #0f172a;
-                color: white;
-                text-align: center;
-                padding: 40px;
-            }
-            .box {
-                background: #1e293b;
-                padding: 30px;
-                border-radius: 20px;
-            }
-            button {
-                margin-top: 20px;
-                padding: 15px 25px;
-                border: none;
-                border-radius: 12px;
-                background: #22c55e;
-                color: black;
-                font-size: 16px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="box">
-            <h2>👋 Xush kelibsiz</h2>
-            <p>Buyurtma berish uchun tayyormiz</p>
-            <button>🛒 Buyurtma berish</button>
-        </div>
-    </body>
-    </html>
-    """
+def index():
+    return render_template("index.html")
 
+# ---------- TELEGRAM BOT ----------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            KeyboardButton(
+                "📦 Buyurtma berish",
+                web_app=WebAppInfo(url=WEB_URL)
+            )
+        ]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text("Xush kelibsiz!", reply_markup=reply_markup)
+
+async def web_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = update.effective_message.web_app_data.data
+    await update.message.reply_text(f"✅ Buyurtma qabul qilindi: {data}")
+
+def run_bot():
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(
+        MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_data)
+    )
+
+    application.run_polling(drop_pending_updates=True)
+
+# ---------- RUN ----------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    threading.Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=10000)
