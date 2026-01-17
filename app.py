@@ -1,41 +1,44 @@
 import os
-import threading
-from flask import Flask
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from flask import Flask, request
 
-# =====================
-# TELEGRAM BOT TOKEN
-# =====================
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-# =====================
-# FLASK APP
-# =====================
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def home():
-    return "✅ Telegram Bot ishlayapti!"
+    javob = ""
+    if request.method == "POST":
+        javob = request.form.get("text", "")
+    return f"""
+    <html>
+    <head>
+        <title>Mini Web Do‘kon</title>
+        <style>
+            body {{
+                font-family: Arial;
+                background: #f2f2f2;
+                padding: 30px;
+            }}
+            .card {{
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                width: 300px;
+            }}
+        </style>
+    </head>
+    <body>
+        <h2>🛒 Mini Web Do‘kon</h2>
+        <div class="card">
+            <form method="post">
+                <input name="text" placeholder="Matn yozing">
+                <button type="submit">Yuborish</button>
+            </form>
+            <p>{javob}</p>
+        </div>
+    </body>
+    </html>
+    """
 
-# =====================
-# TELEGRAM BOT HANDLERS
-# =====================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Salom! Bot ishlayapti ✅")
-
-def run_bot():
-    application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.run_polling(drop_pending_updates=True)
-
-# =====================
-# MAIN
-# =====================
 if __name__ == "__main__":
-    # Telegram botni alohida oqimda ishga tushiramiz
-    threading.Thread(target=run_bot).start()
-
-    # Flask PORT (Render uchun MUHIM)
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
