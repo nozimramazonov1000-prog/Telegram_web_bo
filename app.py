@@ -1,60 +1,38 @@
 import os
-import threading
-from flask import Flask, render_template
-from dotenv import load_dotenv
-
-from telegram import Update, WebAppInfo, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
-
-load_dotenv()
+from telebot import TeleBot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEB_URL = os.getenv("WEB_URL")  # Render URL
 
-if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN topilmadi (.env ni tekshir)")
+bot = TeleBot(BOT_TOKEN)
 
-app = Flask(__name__)
-
-# ---------- FLASK ----------
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-# ---------- TELEGRAM BOT ----------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            KeyboardButton(
-                "📦 Buyurtma berish",
-                web_app=WebAppInfo(url=WEB_URL)
+# /start komandasi
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(
+        KeyboardButton(
+            "🧩 Mini App ochish",
+            web_app=WebAppInfo(
+                url="https://telegram-web-bo-2234.onrender.com"
             )
-        ]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("Xush kelibsiz!", reply_markup=reply_markup)
-
-async def web_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = update.effective_message.web_app_data.data
-    await update.message.reply_text(f"✅ Buyurtma qabul qilindi: {data}")
-
-def run_bot():
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(
-        MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_data)
+        )
     )
 
-    application.run_polling(drop_pending_updates=True)
+    bot.send_message(
+        message.chat.id,
+        "Mini Web App’ni ochish uchun tugmani bosing 👇",
+        reply_markup=markup
+    )
 
-# ---------- RUN ----------
+# Mini Web App’dan kelgan datani ushlash
+@bot.message_handler(content_types=['web_app_data'])
+def web_app_handler(message):
+    data = message.web_app_data.data
+    bot.send_message(
+        message.chat.id,
+        f"✅ Mini App’dan keldi:\n{data}"
+    )
+
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=10000)
+    bot.infinity_polling()
